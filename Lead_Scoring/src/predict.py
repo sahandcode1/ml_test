@@ -1,26 +1,35 @@
-import pandas as pd
+from sklearn.preprocessing import LabelEncoder
 import joblib
+import pandas as pd
 from fastapi import FastAPI
 from business_rules import apply_business_rules
+from pydantic import BaseModel
 
 app = FastAPI()
 
 model = joblib.load(r"\git hub\ml_test\Lead_Scoring\model.pkl")
 
-@app.post("/predict")
-def predict(customer:dict):
-    df = pd.DataFrame([customer])
-    df = pd.get_dummies(df,columns=['region'])
+le_region = LabelEncoder()
+le_region.classes_ = ["Isfahan","Mashhad","Shiraz","Tabriz","Tehran"]
 
-    for col in ['region_Shiraz', 'region_Tabriz', 'region_Tehran','region_Isfahan','region_Mashhad']:
-        if col not in df.columns:
-            df[col] = 0
-    
+class Customer(BaseModel):
+    age: int
+    region: str
+    total_purchases: int
+    last_interaction_days: int
+@app.post("/predict")
+def predict(customer: dict):
+    customer['region'] = le_region.transform([customer['region']])[0]
+
+    df = pd.DataFrame([customer])
+
+    df = df[model.feature_names_in_]
+
     prediction = model.predict(df)[0]
 
-    final_score = apply_business_rules(customer,prediction)
+    final_score = apply_business_rules(customer, prediction)
 
-    return{
-        'predicted_purchase':bool(final_score),
-        'model_prediction':bool(prediction)
+    return {
+        'predicted_purchase': bool(final_score),
+        'model_prediction': bool(prediction)
     }

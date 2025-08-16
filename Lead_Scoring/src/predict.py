@@ -9,25 +9,19 @@ app = FastAPI()
 
 model = joblib.load(r"\git hub\ml_test\Lead_Scoring\model.pkl")
 
-le_region = LabelEncoder()
-le_region.classes_ = ["Isfahan","Mashhad","Shiraz","Tabriz","Tehran"]
-
 class Customer(BaseModel):
     age: int
-    region: str
     total_purchases: int
     last_interaction_days: int
+
+
 @app.post("/predict")
-def predict(customer: dict):
-    customer['region'] = le_region.transform([customer['region']])[0]
-
-    df = pd.DataFrame([customer])
-
+def predict(customer: Customer):
+    df = pd.DataFrame([customer.dict()])
     df = df[model.feature_names_in_]
 
     prediction = model.predict(df)[0]
-
-    final_score = apply_business_rules(customer, prediction)
+    final_score = apply_business_rules(customer.dict(), prediction)
 
     return {
         'predicted_purchase': bool(final_score),
